@@ -3,8 +3,10 @@ import logging
 import os
 from typing import Dict, List
 from bs4 import BeautifulSoup
+
 from request_module import fetch_webpage
 from utils import absolute_url
+
 def parse_html(html_content):
     if html_content:
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -44,16 +46,24 @@ def extract_headlines_with_urls(html_content:str, log_dir:str = 'logs', url:str 
             logger.error("Invalid HTML content provided")
             return results
         
-        soup = BeautifulSoup(html_content, 'html.parser')
+        soup = parse_html(html_content=html_content)
         
         headline_tags = ['h1', 'h2', 'h3']
         
         for tag in headline_tags:
             news = soup.find_all(tag)
-            print(news)
+            
+            if not news:
+                tags = soup.find_all('a')
+                for tag in tags: 
+                    if len(tag.get_text().strip()) > 35: 
+                        news.append(tag)
+                
+            
             for headline in news:
                 link = None
                 time = None
+         
                 if headline.find_parent('a'):
                     link = headline.find_parent('a')
                 elif headline.find('a'):
@@ -64,7 +74,6 @@ def extract_headlines_with_urls(html_content:str, log_dir:str = 'logs', url:str 
                     for _ in range(3):
                         if parent and parent.find('a'):
                             link = parent.find('a') 
-                            print(link.find_parent('time'))
                             break
                         parent = parent.find_parent() if parent else None
                         
@@ -72,6 +81,7 @@ def extract_headlines_with_urls(html_content:str, log_dir:str = 'logs', url:str 
                     headline_text = headline.get_text(strip = True)
                     
                     if headline_text:
+                        # print(headline_text)
                         time_tag = headline.find_next('time')
                         
                         if not time_tag:
@@ -81,12 +91,13 @@ def extract_headlines_with_urls(html_content:str, log_dir:str = 'logs', url:str 
                             parent = headline.find_parent()
                             time_tag = parent.find('time') if parent else None
                             
+                            
                         time = time_tag.get('datetime') if time_tag else None    
                             
                         result = {
                             'headline': headline_text,
                             'url': absolute_url(url, link['href']),
-                            'time': time  
+                            'date': time  
                         }
                         
                         results.append(result)
@@ -106,23 +117,23 @@ def extract_headlines_with_urls(html_content:str, log_dir:str = 'logs', url:str 
     
     
 
-
     
-    
-    
-    
-    
-    
-    
-    
-    
+        
     
     
 if __name__ == "__main__":
-    url = "https://www.interpressnews.ge"
+    url_ipn = "https://www.interpressnews.ge"
+    url_sazmau = "https://1tv.ge/sporti/siakhleebi/"
     
-    html_content = fetch_webpage(url)
-    news_data  = extract_headlines_with_urls(html_content, url=url)
+    html_content_ipn = fetch_webpage(url_ipn)
+    html_content_sazmau = fetch_webpage(url_sazmau)
+    news_data_ipn  = extract_headlines_with_urls(html_content_ipn, url=url_ipn)
+    news_data_sazmau  = extract_headlines_with_urls(html_content_sazmau)
+    
+    news_data_ipn.extend(news_data_sazmau)
+
+    data = news_data_ipn
+    
    
-    for news in news_data:
-        print(news)
+    
+  
